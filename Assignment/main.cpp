@@ -14,6 +14,7 @@ WASD to turn, up to go in the direction you're facing, space to attack
 #include "Antons_maths_funcs.h"
 #include "obj_parser.h"
 #include <fstream>
+#include <irrKlang/irrKlang.h>
 
 #define STB_IMAGE_IMPLEMENTATION
 
@@ -21,13 +22,22 @@ WASD to turn, up to go in the direction you're facing, space to attack
 
 #define STBI_ASSERT(x)
 
+#pragma comment(lib, "irrKlang.lib") // link with irrKlang.dll
+
 #include "scene_object.h"
 #include "red.h"
 #include "wolf.h"
 #include "pack_member.h"
 #include "pack.h"
 
-//
+using namespace irrklang;
+
+// sound engine
+ISoundEngine* engine;
+// fade the sound (song)?
+bool fade = false;
+float fade_factor = 1.0;
+
 // dimensions of the window drawing surface
 int gl_width = 600;
 int gl_height = 600;
@@ -143,7 +153,7 @@ bool move_red = false;
 int red_lives = 3;
 bool red_win = false;
 
-pack gang(2);
+pack gang(3);
 
 vec3 wolf_loc = vec3 (-2.0, -0.75, -4);
 bool move_wolf = false;
@@ -151,8 +161,8 @@ bool move_wolf = false;
 //vec3 shroom_locs[] = {vec3 (0.0, -0.75, 0.0), vec3 (1.0, -0.75, -0.5), vec3 (1.5, -0.75, 1.75), vec3 (-1, -0.75, -1.0)};
 //int num_shrooms = 4;
 
-vec3 shroom_locs[100];
-int num_shrooms = 100;
+int num_shrooms = 150;
+vec3 shroom_locs[150];
 
 
 char* reds_meshes[] = { "Meshes/red_face.obj",
@@ -261,6 +271,7 @@ void My_Key_Callback(GLFWwindow* window, int key, int scancode, int action, int 
 			load_maze('s');
 			maze_in_use = 's'; 
 			show_level_screen = false;
+			fade = true;
 		}
 		else{
 			V_trans_y += 0.05;
@@ -289,6 +300,7 @@ void My_Key_Callback(GLFWwindow* window, int key, int scancode, int action, int 
 			load_maze('l');
 			maze_in_use = 'l'; 
 			show_level_screen = false;
+			fade = true;
 		}
 		V_rot_y -= 2;
 	}
@@ -303,6 +315,7 @@ void My_Key_Callback(GLFWwindow* window, int key, int scancode, int action, int 
 			load_maze('m');
 			maze_in_use = 'm'; 
 			show_level_screen = false;
+			fade = true;
 		}
 	}
 
@@ -620,6 +633,26 @@ int main () {
 	GLuint shader_programme;
 	GLuint simple_shader;
 
+	// start the sound engine with default parameters
+	engine = createIrrKlangDevice();
+
+	if (!engine)
+	{
+		printf("Could not startup engine\n");
+		return 0; // error starting up the engine
+	}
+
+	engine->setSoundVolume(0.6);
+
+	ISoundSource* music = engine->addSoundSourceFromFile("Sound/lilred.mp3");
+	ISoundSource* wolf_attack = engine->addSoundSourceFromFile("Sound/growl1.wav");
+	ISoundSource* scream = engine->addSoundSourceFromFile("Sound/WilhelmScream.mp3");
+
+
+	ISound* backing_track = engine->play2D(music, true, false, true);
+
+	gang.voice(engine);
+
 	//generate shroom locations
 	for(int i=0; i<num_shrooms; i++){
 		float shroom_x = (rand()%2500)*0.1;
@@ -795,9 +828,7 @@ int main () {
 	
 	granmas_house.M_loc = M_loc;
 	granmas_house.V_loc = V_loc;
-	granmas_house.P_loc = P_loc;
-
-	
+	granmas_house.P_loc = P_loc;	
 
 
 
@@ -838,7 +869,7 @@ int main () {
 	while (!glfwWindowShouldClose (window)) {
 		glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		if(show_level_screen||show_lose_screen||show_start_screen||show_win_screen){
+		if (show_level_screen||show_lose_screen||show_start_screen||show_win_screen) {
 			glViewport (((gl_width*0.5)-(gl_height*0.5)), 0, gl_height, gl_height);
 			glDisable (GL_CULL_FACE); // cull face
 			glUseProgram (simple_shader);
@@ -862,7 +893,7 @@ int main () {
 
 		}
 
-		else{
+		else {
 			glEnable (GL_CULL_FACE);
 			glUseProgram (shader_programme);
 
@@ -903,6 +934,7 @@ int main () {
 				}
 				if(red_win){
 					show_win_screen = true;
+					backing_track = engine->play2D(music, true, false, true);
 				}
 			}
 			if(move_wolf){
@@ -910,34 +942,44 @@ int main () {
 				if(maze_in_use=='d'){
 					if(gang.move((int *)grid, grid_size, red_row, red_col)){
 						red_lives--;
+						engine->play2D(wolf_attack);
 						if(red_lives<=0){
+							engine->play2D(scream);
 							show_lose_screen = true;
+							backing_track = engine->play2D(music, true, false, true);
 						}
 					}
 				}
 				if(maze_in_use=='s'){
 					if(gang.move((int *)s_maze_grid, maze_grid_size, red_row, red_col)){
 						red_lives--;
+						engine->play2D(wolf_attack);
 						if(red_lives<=0){
+							engine->play2D(scream);
 							show_lose_screen = true;
+							backing_track = engine->play2D(music, true, false, true);
 						}
 					}
 				}
 				if(maze_in_use=='m'){
 					if(gang.move((int *)m_maze_grid, maze_grid_size, red_row, red_col)){
 						red_lives--;
+						engine->play2D(wolf_attack);
 						if(red_lives<=0){
+							engine->play2D(scream);
 							show_lose_screen = true;
+							backing_track = engine->play2D(music, true, false, true);
 						}
 					}
 				}
 				if(maze_in_use=='l'){
 					if(gang.move((int *)l_maze_grid, maze_grid_size, red_row, red_col)){
 						red_lives--;
-						std::cout << "\nBITTEN\n";
+						engine->play2D(wolf_attack);
 						if(red_lives<=0){
-							std::cout<<"\n\n\n\t\tGAME OVER!\n\n\n";
+							engine->play2D(scream);
 							show_lose_screen = true;
+							backing_track = engine->play2D(music, true, false, true);
 						}
 					}
 				}
@@ -1100,6 +1142,19 @@ int main () {
 				heart.draw();
 			}
 			//End heart section
+
+			//Music section
+			if (fade) {
+				if (backing_track) {
+					backing_track->setVolume(fade_factor);
+					fade_factor -= 0.002;
+				}
+				if (fade_factor < 0.0) {
+					fade_factor = 1.0;
+					fade = false;
+					backing_track->drop();
+				}
+			}
 		}
 
 		// this just updates window events and keyboard input events
@@ -1107,9 +1162,12 @@ int main () {
 		glfwSwapBuffers (window);
 		if(close_window){
 			glfwDestroyWindow(window);
+			if (backing_track) {
+				backing_track->drop(); // drop backing track
+			}
+			engine->drop(); // delete sound engine
 		}
 	}
-
 
 	return 0;
 }

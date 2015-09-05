@@ -22,6 +22,13 @@ pack::~pack(){
 	}
 }
 
+void pack::voice(ISoundEngine* _engine){
+	engine = _engine;
+
+	birth = engine->addSoundSourceFromFile("Sound/wolf_howl.wav");
+	death = engine->addSoundSourceFromFile("Sound/wolf_hurt.WAV");
+}
+
 bool pack::move(int *grid, int size, int red_row, int red_col){
 	pack_member *curr = alpha;
 	pack_member *prev = NULL;
@@ -63,6 +70,9 @@ bool pack::move(int *grid, int size, int red_row, int red_col){
 					_new = NULL;
 					grid[(red_row-5+chance_row)*size+(red_col-5+chance_col)]=3;
 					pack_size++;
+					if (rand()%3==2 && !engine->isCurrentlyPlaying(birth)){
+						engine->play2D(birth);
+					}
 				}
 			}
 		}
@@ -91,6 +101,8 @@ void pack::kill_wolf(int  _row, int _col){
 	pack_member *curr = alpha;
 	pack_member *prev = NULL;
 	
+	engine->play2D(death);
+
 	while (curr!=NULL){
 		if((curr->row==_row)&&(curr->col==_col)){
 			if(prev!=NULL){
